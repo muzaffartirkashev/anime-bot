@@ -1,6 +1,8 @@
 import telebot
 import sqlite3
 import re
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from config import BOT_TOKEN, ADMIN_IDS
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -457,8 +459,23 @@ def handle_text(msg):
         else:
             bot.send_message(msg.chat.id, '❌ Topilmadi. Boshqa nom yoki ID bilan urining.')
         return
-    bot.send_message(msg.chat.id, 'Menyudan foydalaning yoki 🔍 Anime qidiruv tugmasini bosing.')
+    bot.send_message(msg.chat.id, 'Menyudan foydalaning 🔍 Anime qidiruv tugmasini bosing.')
+
+
+# Render.com uchun HTTP server
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+    def log_message(self, format, *args):
+        pass
+
+def run_server():
+    HTTPServer(('0.0.0.0', 10000), Handler).serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 
 init_db()
 print('Bot ishga tushdi!')
 bot.polling(none_stop=True)
+
