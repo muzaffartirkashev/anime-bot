@@ -103,10 +103,15 @@ def extract_episode(caption):
     for p in patterns:
         m = re.search(p, caption, re.IGNORECASE)
         if m:
-            return int(m.group(1))
-    nums = re.findall(r'\d+', caption)
-    if nums:
-        return int(nums[-1])
+            val = int(m.group(1))
+            if val <= 9999:
+                return val
+    # 1080p, 720p kabi sifat raqamlarini o'tkazib yuborish
+    nums = re.findall(r'\b(\d+)\b', caption)
+    for n in nums:
+        val = int(n)
+        if 1 <= val <= 999:
+            return val
     return None
 
 def main_menu():
