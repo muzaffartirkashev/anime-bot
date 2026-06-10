@@ -532,4 +532,240 @@ def process_media_group(uid, group_id):
                          f'⚠️ {len(need_manual)} ta videoning qism raqami aniqlanmadi.\n'
                          f'1-video uchun qism raqamini kiriting:')
 
-@bot.message_handler(content_types=['video', 'document']
+@bot.message_handler(content_types=['video', 'document'], func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'waiting_video')
+def get_video(msg):
+    uid = msg.from_user.id
+    file_id = msg.video.file_id if msg.video else msg.document.file_id
+
+    # Media group (bir vaqtda ko'p video)
+    if msg.media_group_id:
+        gid = msg.media_group_id
+        if gid not in media_group_buffer:
+            media_group_buffer[gid] = []
+        media_group_buffer[gid].append(msg)
+        if gid not in media_group_timers:
+            t = threading.Timer(1.5, process_media_group, args=[uid, gid])
+            media_group_timers[gid] = t
+            t.start()
+        return
+
+    # Bitta video
+    episode = extract_episode(msg.caption or '')
+    d = user_states[uid]
+    if not episode:
+        user_states[uid]['cur_video'] = file_id
+        user_states[uid]['step'] = 'manual_ep'
+        bot.send_message(msg.chat.id, '⚠️ Qism raqamini aniqlay olmadim. Qo\'lda kiriting:')
+        return
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO anime (anime_id, title, genre, season, episode, video, category, status) VALUES (?,?,?,?,?,?,?,?)',
+              (d['anime_id'], d['title'], d['genre'], d['season'], episode, file_id, d['category'], d['status']))
+    conn.commit()
+    conn.close()
+    sl = 'OVA' if d['season'] == 0 else f"{d['season']}-fasl"
+    bot.send_message(msg.chat.id, f'✅ {sl} {episode}-qism saqlandi! Davom eting yoki /done yozing.')
+
+@bot.message_handler(func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'manual_ep_multi')
+def manual_ep_multi(msg):
+    try:
+        episode = int(msg.text.strip())
+        uid = msg.from_user.id
+        d = user_states[uid]
+        pending = d['pending_videos']
+        idx = d['pending_index']
+        file_id = pending[idx]
+
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('INSERT OR REPLACE INTO anime (anime_id, title, genre, season, episode, video, category, status) VALUES (?,?,?,?,?,?,?,?)',
+                  (d['anime_id'], d['title'], d['genre'], d['season'], episode, file_id, d['category'], d['status']))
+        conn.commit()
+        conn.close()
+
+        sl = 'OVA' if d['season'] == 0 else f"{d['season']}-fasl"
+        bot.send_message(msg.chat.id, f'✅ {sl} {episode}-qism saqlandi!')
+
+        idx += 1
+        if idx < len(pending):
+            user_states[uid]['pending_index'] = idx
+            bot.send_message(msg.chat.id, f'{idx+1}-video uchun qism raqamini kiriting:')
+        else:
+            user_states[uid]['step'] = 'waiting_video'
+            del user_states[uid]['pending_videos']
+            del user_states[uid]['pending_index']
+            bot.send_message(msg.chat.id, '✅ Barcha qismlar saqlandi! Davom eting yoki /done yozing.')
+    except:
+        bot.send_message(msg.chat.id, '❌ Faqat raqam kiriting!')
+
+@bot.message_handler(func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'manual_ep')
+def manual_ep(msg):
+    try:
+        episode = int(msg.text.strip())
+        d = user_states[msg.from_user.id]
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('INSERT OR REPLACE INTO anime (anime_id, title, genre, season, episode, video, category, status) VALUES (?,?,?,?,?,?,?,?)',
+                  (d['anime_id'], d['title'], d['genre'], d['season'], episode, d['cur_video'], d['category'], d['status']))
+        conn.commit()
+        conn.close()
+        user_states[msg.from_user.id]['step'] = 'waiting_video'
+        sl = 'OVA' if d['season'] == 0 else f"{d['season']}-fasl"
+        bot.send_message(msg.chat.id, f'✅ {sl} {episode}-qism saqlandi! Davom eting yoki /done yozing.')
+    except:
+        bot.send_message(msg.chat.id, '❌ Faqat raqam kiriting!')
+
+@bot.message_handler(func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'del_id')
+def del_anime(msg):
+    try:
+        aid = int(msg.text.strip())
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT title FROM anime WHERE anime_id=? LIMIT 1', (aid,))
+        row = c.fetchone()
+        if row:
+            c.execute('DELETE FROM anime WHERE anime_id=?', (aid,))
+            conn.commit()
+            bot.send_message(msg.chat.id, f'✅ "{row[0]}" ochirildi!')
+        else:
+            bot.send_message(msg.chat.id, '❌ Bu ID da anime topilmadi!')
+        conn.close()
+        user_states.pop(msg.from_user.id)
+    except:
+        bot.send_message(msg.chat.id, '❌ Faqat raqam kiriting!')
+
+@bot.message_handler(func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'poster_id')
+def get_poster_id(msg):
+    try:
+        user_states[msg.from_user.id]['poster_aid'] = int(msg.text.strip())
+        user_states[msg.from_user.id]['step'] = 'poster_img'
+        bot.send_message(msg.chat.id, '🖼 Rasm yuboring:')
+    except:
+        bot.send_message(msg.chat.id, '❌ Faqat raqam kiriting!')
+
+@bot.message_handler(content_types=['photo'],
+                     func=lambda m: m.from_user.id in user_states and user_states[m.from_user.id].get('step') == 'poster_img')
+def save_poster(msg):
+    aid = user_states[msg.from_user.id]['poster_aid']
+    fid = msg.photo[-1].file_id
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute('UPDATE anime SET poster=? WHERE anime_id=?', (fid, aid))
+    affected = c.rowcount
+    conn.commit()
+    conn.close()
+    user_states.pop(msg.from_user.id)
+    if affected > 0:
+        bot.send_message(msg.chat.id, '✅ Poster muvaffaqiyatli qoshildi!')
+    else:
+        bot.send_message(msg.chat.id, '❌ Bu ID da anime topilmadi!')
+
+@bot.message_handler(commands=['done'])
+def done_cmd(msg):
+    if msg.from_user.id not in user_states:
+        return
+    d = user_states.pop(msg.from_user.id)
+    aid = d.get('anime_id')
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute('SELECT title FROM anime WHERE anime_id=? LIMIT 1', (aid,))
+    row = c.fetchone()
+    c.execute('SELECT COUNT(*) FROM anime WHERE anime_id=?', (aid,))
+    cnt = c.fetchone()[0]
+    conn.close()
+    title = row[0] if row else 'Nomalum'
+    username = bot.get_me().username
+    bot.send_message(msg.chat.id,
+                     f'✅ <b>{title}</b> uchun {cnt} ta qism saqlandi!\n\n'
+                     f'🔗 Havola: t.me/{username}?start={aid}',
+                     parse_mode='HTML')
+
+@bot.message_handler(func=lambda m: True)
+def handle_text(msg):
+    if not msg.text:
+        return
+    text = msg.text.strip()
+
+    if text == '📞 Murojaat':
+        bot.send_message(msg.chat.id, '📞 Murojaat uchun: @tamioka_g1yu')
+        return
+
+    cats = {
+        '🎬 Anime & Filmlar': 'film',
+        '📺 Ongoing Animelar': 'ongoing',
+        '✅ Tugallangan': 'completed',
+        '📡 Seriallar': 'serial',
+        '🔴 Shorts': 'shorts',
+    }
+    if text in cats:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT DISTINCT anime_id, title FROM anime WHERE category=?', (cats[text],))
+        rows = c.fetchall()
+        conn.close()
+        show_list(msg.chat.id, text, rows)
+        return
+
+    if text == '📚 Barcha animelar':
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT DISTINCT anime_id, title FROM anime ORDER BY id DESC')
+        rows = c.fetchall()
+        conn.close()
+        show_list(msg.chat.id, 'Barcha animelar', rows)
+        return
+
+    if text == '⭐ Tavsiya etilganlar':
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT DISTINCT anime_id, title FROM anime ORDER BY views DESC LIMIT 10')
+        rows = c.fetchall()
+        conn.close()
+        show_list(msg.chat.id, '⭐ Tavsiya etilganlar', rows)
+        return
+
+    if text == '🔍 Anime qidiruv':
+        user_states[msg.from_user.id] = {'step': 'searching'}
+        bot.send_message(msg.chat.id, '🔍 Anime nomi yoki ID raqamini yozing:')
+        return
+
+    if msg.from_user.id in user_states and user_states[msg.from_user.id].get('step') == 'searching':
+        user_states.pop(msg.from_user.id)
+        try:
+            show_anime_info(msg.chat.id, int(text), msg.from_user.id)
+            return
+        except:
+            pass
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT DISTINCT anime_id, title FROM anime WHERE title LIKE ? LIMIT 10', ('%' + text + '%',))
+        rows = c.fetchall()
+        conn.close()
+        if rows:
+            show_list(msg.chat.id, f'🔍 "{text}" natijalari:', rows)
+        else:
+            bot.send_message(msg.chat.id, '❌ Topilmadi. Boshqa nom yoki ID bilan urining.')
+        return
+
+    bot.send_message(msg.chat.id, '🔍 Anime qidiruv tugmasini bosing yoki menyudan foydalaning.')
+
+
+# ─── HTTP SERVER ─────────────────────────
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Bot is running!')
+    def log_message(self, format, *args):
+        pass
+
+def run_server():
+    port = int(os.environ.get('PORT', 10000))
+    HTTPServer(('0.0.0.0', port), Handler).serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
+
+init_db()
+print('✅ Bot ishga tushdi!')
+bot.infinity_polling(timeout=60, long_polling_timeout=60)
