@@ -135,7 +135,7 @@ def welcome_new_user(msg):
         '⭐ Eng mashhur animeni topish\n'
         '━━━━━━━━━━━━━━━━━\n\n'
         '📢 Kanal: https://t.me/animelarr_uzbekcha\n'
-        '👤 Admin: @tamioka_g1yu\n\n'
+        '👤 Admin: @g1yu_tamioka\n\n'
         '👇 Quyidagi menyudan foydalaning!'
     )
     bot.send_message(msg.chat.id, text, reply_markup=main_menu(), parse_mode='HTML')
@@ -705,7 +705,7 @@ def handle_text(msg):
     text = msg.text.strip()
 
     if text == '📞 Murojaat':
-        bot.send_message(msg.chat.id, '📞 <b>Murojaat</b>\n\n👤 Admin: @tamioka_g1yu\n📢 Kanal: https://t.me/animelarr_uzbekcha', parse_mode='HTML')
+        bot.send_message(msg.chat.id, '📞 <b>Murojaat</b>\n\n👤 Admin: @g1yu_tamioka\n📢 Kanal: https://t.me/animelarr_uzbekcha', parse_mode='HTML')
         return
 
     # Shorts - random video
