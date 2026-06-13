@@ -912,7 +912,7 @@ def run_server():
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
 
 threading.Thread(target=run_server, daemon=True).start()
-  @bot.message_handler(commands=['post'])
+@bot.message_handler(commands=['post'])
 def post_cmd(msg):
     if msg.from_user.id not in ADMIN_IDS:
         return
