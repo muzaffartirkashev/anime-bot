@@ -699,10 +699,14 @@ def done_cmd(msg):
     kb = telebot.types.InlineKeyboardMarkup()
     kb.add(telebot.types.InlineKeyboardButton('✨ Tomosha qilish ✨', url=f'https://{link}'))
     text = (
-        f'🎬 <b>{title}</b>\n\n'
-        f'✏️ Janr: {genre or "Nomalum"}\n'
-        f'📊 Holat: {st}\n'
-        f'🎞 Qismlar soni: {cnt}\n\n'
+        f'✦ ──────────────── ✦\n'
+        f'🎬 <b>{title}</b>\n'
+        f'✦ ──────────────── ✦\n\n'
+        f'✏️ <b>Janr:</b> {genre or "Nomalum"}\n'
+        f'📊 <b>Holat:</b> {st}\n'
+        f'🎞 <b>Qismlar soni:</b> {cnt}\n'
+        f'🌐 <b>Tili:</b> O\'zbek tilida\n\n'
+        f'✦ ──────────────── ✦\n'
         f'📢 @animelarr_uzbekcha'
     )
     try:
