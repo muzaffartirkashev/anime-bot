@@ -766,7 +766,7 @@ def handle_text(msg):
     if text == '📚 Barcha animelar':
         conn = get_conn()
         c = conn.cursor()
-        c.execute('SELECT DISTINCT anime_id, title FROM anime ORDER BY id DESC')
+        c.execute('SELECT DISTINCT anime_id, title FROM anime ORDER BY anime_id DESC')
         rows = c.fetchall()
         conn.close()
         show_list(msg.chat.id, 'Barcha animelar', rows)
