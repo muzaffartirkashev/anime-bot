@@ -912,7 +912,29 @@ def run_server():
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
 
 threading.Thread(target=run_server, daemon=True).start()
-
+  @bot.message_handler(commands=['post'])
+def post_cmd(msg):
+    if msg.from_user.id not in ADMIN_IDS:
+        return
+    args = msg.text.split()
+    if len(args) < 2:
+        bot.send_message(msg.chat.id, '📝 Ishlatish: /post <anime_id>\nMasalan: /post 1')
+        return
+    try:
+        aid = int(args[1])
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute('SELECT title, genre, status, poster FROM anime WHERE anime_id=%s LIMIT 1', (aid,))
+        row = c.fetchone()
+        conn.close()
+        if not row:
+            bot.send_message(msg.chat.id, '❌ Bu ID da anime topilmadi!')
+            return
+        title, genre, status, poster = row
+        send_channel_post(msg.chat.id, aid, title, genre, status, poster)
+        bot.send_message(msg.chat.id, f'✅ <b>{title}</b> kanalga joylandi!', parse_mode='HTML')
+    except Exception as e:
+        bot.send_message(msg.chat.id, f'❌ Xatolik: {e}')
 init_db()
 print('✅ Bot ishga tushdi!')
 bot.infinity_polling(timeout=60, long_polling_timeout=60)
