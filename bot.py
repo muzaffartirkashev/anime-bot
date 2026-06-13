@@ -675,8 +675,43 @@ def done_cmd(msg):
     aid = d.get('anime_id')
     conn = get_conn()
     c = conn.cursor()
-    c.execute('SELECT title FROM anime WHERE anime_id=%s LIMIT 1', (aid,))
+    c.execute('SELECT title, genre, status, poster FROM anime WHERE anime_id=%s LIMIT 1', (aid,))
     row = c.fetchone()
+    c.execute('SELECT COUNT(*) FROM anime WHERE anime_id=%s', (aid,))
+    cnt = c.fetchone()[0]
+    conn.close()
+    title = row[0] if row else 'Nomalum'
+    genre = row[1] if row else 'Nomalum'
+    status = row[2] if row else 'ongoing'
+    poster = row[3] if row else None
+    username = bot.get_me().username
+    st = '✅ Tugallangan' if status == 'completed' else '🔄 Ongoing'
+    link = f't.me/{username}?start={aid}'
+    
+    # Adminga xabar
+    bot.send_message(msg.chat.id,
+                     f'✅ <b>{title}</b> uchun {cnt} ta qism saqlandi!\n\n'
+                     f'🔗 Havola: {link}',
+                     parse_mode='HTML')
+    
+    # Kanalga post
+    CHANNEL = '@animelarr_uzbekcha'
+    kb = telebot.types.InlineKeyboardMarkup()
+    kb.add(telebot.types.InlineKeyboardButton('✨ Tomosha qilish ✨', url=f'https://{link}'))
+    text = (
+        f'🎬 <b>{title}</b>\n\n'
+        f'✏️ Janr: {genre or "Nomalum"}\n'
+        f'📊 Holat: {st}\n'
+        f'🎞 Qismlar soni: {cnt}\n\n'
+        f'📢 @animelarr_uzbekcha'
+    )
+    try:
+        if poster:
+            bot.send_photo(CHANNEL, poster, caption=text, reply_markup=kb, parse_mode='HTML')
+        else:
+            bot.send_message(CHANNEL, text, reply_markup=kb, parse_mode='HTML')
+    except Exception as e:
+        bot.send_message(msg.chat.id, f'⚠️ Kanalga post yuborilmadi: {e}')
     c.execute('SELECT COUNT(*) FROM anime WHERE anime_id=%s', (aid,))
     cnt = c.fetchone()[0]
     conn.close()
