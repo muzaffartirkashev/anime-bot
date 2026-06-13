@@ -277,7 +277,7 @@ def send_channel_post(chat_id, aid, title, genre, status, poster):
         username = bot.get_me().username
         st = '✅ Tugallangan' if status == 'completed' else '🔄 Ongoing'
         link = f'https://t.me/{username}?start={aid}'
-        CHANNEL = '@animelarr_uzbekcha'
+        CHANNEL = '@animedunyosii_uzb'
         kb = telebot.types.InlineKeyboardMarkup()
         kb.add(telebot.types.InlineKeyboardButton('✨ Tomosha qilish ✨', url=link))
         text = (
