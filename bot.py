@@ -14,7 +14,9 @@ bot.set_my_commands([
     telebot.types.BotCommand('/done', 'Qoshishni tugatish'),
     telebot.types.BotCommand('/stats', 'Statistika'),
     telebot.types.BotCommand('/addep', 'Animega qism qoshish'),
-])
+telebot.types.BotCommand('/post', 'Animeni kanalga post qilish'),
+    telebot.types.BotCommand('/merge', 'Animelarni birlashtirish'),
+    telebot.types.BotCommand('/del', 'Animeni ochirish'), ])
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
